@@ -7,30 +7,44 @@ using System;
 
 public class UIAppearance : MonoBehaviour
 {
+    [SerializeField] private CurrentState _currentState;
     [SerializeField] private AppearSide _appearSide;
     [SerializeField] private RectTransform _transform;
     [SerializeField] private AnimationCurve _animationCurve;
     [SerializeField] private float _animationTime;
+    [SerializeField] private bool _animateOnEnable;
 
-    private float _startOffset;
+    private Vector3 _initialPos;
     private RectTransform _canvasRect;
+    private float _startOffset;
     private Vector2 _screenCenter;
     private Vector2 _modifier;
 
     private void Awake()
+    { 
+        SetModifier();
+        _startOffset = GetStartOffset(_appearSide);
+        _initialPos = _transform.localPosition;
+    }
+
+    private void OnEnable()
     {
-        Init();
+        if (_animateOnEnable)
+            Init(_appearSide, _currentState);
     }
 
     public void Init()
     {
-        SetModifier();
+        Init(_appearSide, _currentState);
+    }
+
+    public void Init(AppearSide appearSide, CurrentState currentState)
+    {
         gameObject.SetActive(true);
-        _startOffset = GetStartOffset(_appearSide);
 
-        var moveFunction = GetMoveFunction(_appearSide);
+        var moveFunction = GetMoveFunction(appearSide);
 
-        StartCoroutine(Animating(_transform.transform, _appearSide, moveFunction));
+        StartCoroutine(Animating(_transform.transform, appearSide, currentState, moveFunction));
     }
 
     private void SetModifier()
@@ -39,7 +53,8 @@ public class UIAppearance : MonoBehaviour
 
         float widthMultiplier = canvasScaler.matchWidthOrHeight;
         _screenCenter = _canvasRect.rect.size / 2f;
-        _modifier = new Vector2(_screenCenter.x / (Screen.width * widthMultiplier), _screenCenter.y / (Screen.height * (1 - widthMultiplier)));
+        _modifier = new Vector2(_screenCenter.x / (Screen.width * widthMultiplier), _screenCenter.y / (Screen.height * (1 - widthMultiplier))) +Vector2.one*0.1f;
+        //_modifier = new Vector2(canvasScaler.matchWidthOrHeight, 1- canvasScaler.matchWidthOrHeight);
     }
 
     private CanvasScaler GetCanvasScaler()
@@ -104,9 +119,9 @@ public class UIAppearance : MonoBehaviour
         switch (appearSide)
         {
             case AppearSide.Up:
-                return (Screen.height - _transform.position.y + _transform.rect.height) * _modifier.y;
+                return (Screen.height - transform.position.y + _transform.rect.height) * _modifier.y;
             case AppearSide.Down:
-                return (_transform.position.y + _transform.rect.height) * _modifier.y;
+                return (transform.position.y + _transform.rect.height) * _modifier.y;
             case AppearSide.Left:
                 return (_transform.position.x + _transform.rect.width) * _modifier.x;
             case AppearSide.Right:
@@ -116,30 +131,45 @@ public class UIAppearance : MonoBehaviour
         }
     }
 
-    private IEnumerator Animating(Transform transform, AppearSide appearSide, Func<Vector2, Vector2, float, Vector2> GetNextPosition)
+    private IEnumerator Animating(Transform transform, AppearSide appearSide, CurrentState currentState, Func<Vector2, Vector2, float, Vector2> GetNextPosition)
     {
         Vector2 startPos = GetStartPosition(transform, appearSide);
-
-        transform.localPosition = startPos;
-
         float elapsedTime = 0;
 
-        while (elapsedTime < _animationTime)
+        if (currentState == CurrentState.Enter)
+            transform.localPosition = startPos;
+
+        if (currentState == CurrentState.Exit)
+        {
+            transform.localPosition = _initialPos;
+            elapsedTime = _animationTime;
+        }
+
+
+        while (IsComplete(currentState, elapsedTime))
         {
             transform.localPosition = GetNextPosition(transform.localPosition, startPos, elapsedTime);
 
-            elapsedTime += Time.deltaTime;
+            if (currentState == CurrentState.Enter)
+                elapsedTime += Time.deltaTime;
+            else
+                elapsedTime -= Time.deltaTime;
 
             yield return null;
         }
     }
 
+    private bool IsComplete(CurrentState currentState, float elapsedTime)
+    {
+        return currentState == CurrentState.Enter ? elapsedTime < _animationTime : elapsedTime > 0;
+    }
+
     private Vector2 GetStartPosition(Transform transform, AppearSide appearSide)
     {
         if (IsVerticalMove(appearSide))
-            return new Vector2(transform.localPosition.x, transform.localPosition.y - _startOffset);
+            return new Vector2(_initialPos.x, _initialPos.y - _startOffset);
 
-        return new Vector2(transform.localPosition.x - _startOffset, transform.localPosition.y);
+        return new Vector2(_initialPos.x - _startOffset, _initialPos.y);
     }
 }
 
@@ -149,4 +179,10 @@ public enum AppearSide
     Down,
     Left,
     Right
+}
+
+public enum CurrentState
+{
+    Enter,
+    Exit
 }

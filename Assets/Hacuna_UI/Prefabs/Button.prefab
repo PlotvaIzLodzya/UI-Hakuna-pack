@@ -49,6 +49,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ca43704eaad2a06468df4ee5ff3d60e8, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  _currentState: 0
   _appearSide: 1
   _transform: {fileID: 2888450087986510309}
   _animationCurve:
@@ -85,6 +86,7 @@ MonoBehaviour:
     m_PostInfinity: 2
     m_RotationOrder: 4
   _animationTime: 0.5
+  _animateOnEnable: 1
 --- !u!1 &2281125521365712355
 GameObject:
   m_ObjectHideFlags: 0
